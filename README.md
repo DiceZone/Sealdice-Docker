@@ -24,17 +24,6 @@
 curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh
 ```
 
-### 在线执行（无需下载文件）
-```bash
-curl -L https://dice.zone/bash/sealdice_onekey.sh | bash -s -- -c stable 12345678
-```
-- 部署1个海豹，使用stable版本，QQ号为12345678
-
-```bash
-curl -L https://dice.zone/bash/sealdice_onekey.sh | bash -s -- -n 2 -c latest 12345678 87654321
-```
-- 部署2个海豹，使用latest版本，QQ号分别为12345678和87654321
-
 ### 进阶用法
 
 #### 部署多个海豹（最多99个）
