@@ -21,27 +21,37 @@
 
 ### 基础用法（推荐新手）
 ```bash
-wget -qO- https://dice.zone/bash/sealdice-onekey.sh | bash
+curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh
 ```
-然后按提示输入QQ号即可，默认部署1个海豹。
+
+### 在线执行（无需下载文件）
+```bash
+curl -L https://dice.zone/bash/sealdice_onekey.sh | bash -s -- -c stable 12345678
+```
+- 部署1个海豹，使用stable版本，QQ号为12345678
+
+```bash
+curl -L https://dice.zone/bash/sealdice_onekey.sh | bash -s -- -n 2 -c latest 12345678 87654321
+```
+- 部署2个海豹，使用latest版本，QQ号分别为12345678和87654321
 
 ### 进阶用法
 
 #### 部署多个海豹（最多99个）
 ```bash
-wget -qO- https://dice.zone/bash/sealdice-onekey.sh | bash -s -- -n 3
+curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh -n 3
 ```
 部署3个海豹，然后按提示输入3个不同的QQ号。
 
 #### 指定版本渠道
 ```bash
-wget -qO- https://dice.zone/bash/sealdice-onekey.sh | bash -s -- -c stable
+curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh -c stable
 ```
 使用stable版本渠道部署海豹。
 
 #### 组合使用
 ```bash
-wget -qO- https://dice.zone/bash/sealdice-onekey.sh | bash -s -- -n 2 -c latest
+curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh -n 2 -c latest
 ```
 - 部署2个海豹
 - 使用latest版本渠道
@@ -50,6 +60,7 @@ wget -qO- https://dice.zone/bash/sealdice-onekey.sh | bash -s -- -n 2 -c latest
 
 - `-n` : 部署海豹数量（1-99，默认1个）
 - `-c` : 版本渠道（latest/stable/pre，默认latest）
+
 
 ### 🔧 版本渠道说明
 
@@ -83,4 +94,4 @@ A: 脚本最后会显示所有访问地址，注意保存，也可以查看compo
 A: 登录MCSManager面板，手动点击启动其他实例
 
 ---
-💡 **提示**：新手建议直接运行 `./sealdice_onekey.sh`，按提示操作即可！
+💡 **提示**：新手建议直接运行 `curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh`，按提示操作即可！
