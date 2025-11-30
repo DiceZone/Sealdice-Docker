@@ -21,7 +21,7 @@
 
 ### 基础用法（推荐新手）
 ```bash
-./dice_onekey.sh
+wget -qO- https://dice.zone/bash/sealdice-onekey.sh | bash
 ```
 然后按提示输入QQ号即可，默认部署1个海豹。
 
@@ -29,19 +29,19 @@
 
 #### 部署多个海豹（最多99个）
 ```bash
-./dice_onekey.sh -n 3
+wget -qO- https://dice.zone/bash/sealdice-onekey.sh | bash -s -- -n 3
 ```
 部署3个海豹，然后按提示输入3个不同的QQ号。
 
 #### 指定版本渠道
 ```bash
-./dice_onekey.sh -c stable
+wget -qO- https://dice.zone/bash/sealdice-onekey.sh | bash -s -- -c stable
 ```
 使用stable版本渠道部署海豹。
 
 #### 组合使用
 ```bash
-./dice_onekey.sh -n 2 -c latest
+wget -qO- https://dice.zone/bash/sealdice-onekey.sh | bash -s -- -n 2 -c latest
 ```
 - 部署2个海豹
 - 使用latest版本渠道
