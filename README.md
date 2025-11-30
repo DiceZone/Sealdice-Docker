@@ -21,28 +21,28 @@
 
 ### 基础用法（推荐新手）
 ```bash
-curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh
+curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh
 ```
 
 ### 进阶用法
 
 #### 部署多个海豹（最多99个）
 ```bash
-curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh -n 3
+curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -n 3
 ```
 部署3个海豹，然后按提示输入3个不同的QQ号。
 
 #### 指定版本渠道
 ```bash
-curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh -c stable
+curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -c stable
 ```
 使用stable版本渠道部署海豹。
 
 #### 组合使用
 ```bash
-curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh -n 2 -c latest
+curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -n 4 -c latest
 ```
-- 部署2个海豹
+- 部署4个海豹
 - 使用latest版本渠道
 
 ### 📋 参数说明
