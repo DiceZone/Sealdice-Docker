@@ -39,58 +39,78 @@ jobs:
             echo "PREV_STABLE_DATE=" >> $GITHUB_ENV
           fi
 
-      # 检查预发布版本更新
+      # 检查预发布版本更新 - 使用 pre-release 标签
       - name: 检查预发布更新
         id: check_pre_release
         continue-on-error: true
         run: |
-          # 获取所有发布信息，筛选出tag_name不以v开头的预发布版本
+          # 获取所有发布信息
           RESPONSE=$(curl -s \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/sealdice/sealdice-build/releases" | \
-            jq '[.[] | select(.prerelease == true and (.tag_name | startswith("v") | not))] | sort_by(.published_at) | last')
+            "https://api.github.com/repos/sealdice/sealdice-build/releases")
           
-          # 检查是否找到预发布版本
-          if [ "$(echo "$RESPONSE" | jq -r 'if . == null then "null" else "found" end')" == "found" ]; then
-            # 解析文件名获取版本信息
-            echo "$RESPONSE" | jq -r '.assets[].name' | grep '_linux_' > filenames.txt
+          echo "=== 预发布版本检查 ==="
+          
+          # 查找tag_name为"pre-release"的版本
+          PRE_RELEASE=$(echo "$RESPONSE" | jq '[.[] | select(.tag_name == "pre-release")] | sort_by(.published_at) | last')
+          
+          echo "pre-release标签版本："
+          echo "$PRE_RELEASE" | jq '{tag_name, name, published_at, assets_count: .assets | length}'
+          
+          # 检查是否找到pre-release版本
+          if [ "$(echo "$PRE_RELEASE" | jq -r 'if . == null then "null" else "found" end')" == "found" ]; then
+            # 从assets中查找linux_amd64文件
+            LINUX_ASSET=$(echo "$PRE_RELEASE" | jq -r '.assets[] | select(.name | contains("linux_amd64")) | .name' | head -1)
             
-            # 提取第一个匹配的文件作为样本
-            SAMPLE_FILE=$(grep -m 1 'linux_amd64' filenames.txt)
-            
-            # 解析日期和commit哈希
-            TIMESTAMP=$(echo "$SAMPLE_FILE" | grep -oE '2[0-9]{7}')
-            COMMIT_HASH=$(echo "$SAMPLE_FILE" | awk -F'_linux_' '{print $1}' | rev | cut -c1-7 | rev)
-            
-            # 收集所有平台的下载URL
-            LINUX_AMD64_URL=$(echo "$RESPONSE" | jq -r '.assets[] | select(.name | contains("linux_amd64.tar.gz")) | .browser_download_url')
-            LINUX_ARM64_URL=$(echo "$RESPONSE" | jq -r '.assets[] | select(.name | contains("linux_arm64.tar.gz")) | .browser_download_url')
-            
-            # 创建预发布JSON
-            echo '{
-              "type": "pre-release",
-              "date": "'$TIMESTAMP'",
-              "commit_hash": "'$COMMIT_HASH'",
-              "downloads": {
-                "linux_amd64": "'$LINUX_AMD64_URL'",
-                "linux_arm64": "'$LINUX_ARM64_URL'"
-              }
-            }' > pre_release_temp.json
-            
-            # 检查是否需要更新
-            if [ -z "${{ env.PREV_PRE_COMMIT }}" ] || [ "${{ env.PREV_PRE_COMMIT }}" != "$COMMIT_HASH" ]; then
-              echo "发现新版预发布，commit哈希: $COMMIT_HASH"
-              echo "PRE_NEED_UPDATE=true" >> $GITHUB_ENV
-              mv pre_release_temp.json pre_release.json
+            if [ -n "$LINUX_ASSET" ] && [ "$LINUX_ASSET" != "null" ]; then
+              echo "找到Linux文件: $LINUX_ASSET"
+              
+              # 解析commit哈希（从文件名中提取）
+              # 文件名格式：sealdice_20251201-5f26dde_linux_amd64.tar.gz
+              COMMIT_HASH=$(echo "$LINUX_ASSET" | grep -oE '[0-9a-f]{7}' | head -1)
+              TIMESTAMP=$(echo "$LINUX_ASSET" | grep -oE '2[0-9]{7}')
+              
+              echo "解析出的commit: $COMMIT_HASH"
+              echo "解析出的时间戳: $TIMESTAMP"
+              
+              # 收集下载URL
+              LINUX_AMD64_URL=$(echo "$PRE_RELEASE" | jq -r '.assets[] | select(.name | contains("linux_amd64.tar.gz")) | .browser_download_url')
+              LINUX_ARM64_URL=$(echo "$PRE_RELEASE" | jq -r '.assets[] | select(.name | contains("linux_arm64.tar.gz")) | .browser_download_url')
+              
+              echo "下载URL:"
+              echo "AMD64: $LINUX_AMD64_URL"
+              echo "ARM64: $LINUX_ARM64_URL"
+              
+              # 创建预发布JSON
+              cat > pre_release_temp.json << EOF
+{
+  "type": "pre-release",
+  "date": "$TIMESTAMP",
+  "commit_hash": "$COMMIT_HASH",
+  "downloads": {
+    "linux_amd64": "$LINUX_AMD64_URL",
+    "linux_arm64": "$LINUX_ARM64_URL"
+  }
+}
+EOF
+              
+              # 检查是否需要更新
+              if [ -z "${{ env.PREV_PRE_COMMIT }}" ] || [ "${{ env.PREV_PRE_COMMIT }}" != "$COMMIT_HASH" ]; then
+                echo "发现新版预发布，commit哈希: $COMMIT_HASH (之前: ${{ env.PREV_PRE_COMMIT }})"
+                echo "PRE_NEED_UPDATE=true" >> $GITHUB_ENV
+                mv pre_release_temp.json pre_release.json
+              else
+                echo "预发布版本未变化 (当前: $COMMIT_HASH, 之前: ${{ env.PREV_PRE_COMMIT }})"
+                rm pre_release_temp.json
+              fi
             else
-              echo "预发布版本未变化"
-              rm pre_release_temp.json
+              echo "未找到Linux版本文件"
             fi
           else
-            echo "未找到预发布版本"
+            echo "未找到pre-release标签的版本"
           fi
 
-      # 检查正式版本更新
+      # 检查正式版本更新 - 使用以v开头的版本
       - name: 检查正式发布更新
         id: check_stable_release
         continue-on-error: true
@@ -100,44 +120,57 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/sealdice/sealdice-build/releases")
           
-          # 筛选tag_name以v开头的版本（不再检查prerelease标志），并获取最新的tag
-          LATEST_V_TAG=$(echo "$RESPONSE" | jq -r '[.[] | select(.tag_name | test("^v"))] | .[].tag_name' | tr -d 'v' | sort -V | tail -n 1 | sed 's/^/v/')
+          echo "=== 正式版本检查 ==="
           
-          if [ -n "$LATEST_V_TAG" ] && [ "$LATEST_V_TAG" != "null" ]; then
-            # 查询该tag的详细信息
-            TAG_RESPONSE=$(curl -s \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/sealdice/sealdice-build/releases/tags/$LATEST_V_TAG")
+          # 筛选以v开头的版本（不管prerelease标志）
+          STABLE_RELEASES=$(echo "$RESPONSE" | jq '[.[] | select(.tag_name | test("^v"))]')
+          
+          echo "所有以v开头的版本："
+          echo "$STABLE_RELEASES" | jq '.[] | {tag_name, prerelease, published_at}' | head -10
+          
+          # 获取最新的正式发布版本（按发布时间排序）
+          LATEST_STABLE=$(echo "$STABLE_RELEASES" | jq 'sort_by(.published_at) | last')
+          
+          if [ "$(echo "$LATEST_STABLE" | jq -r 'if . == null then "null" else "found" end')" == "found" ]; then
+            TAG_NAME=$(echo "$LATEST_STABLE" | jq -r '.tag_name')
+            PUBLISHED_AT=$(echo "$LATEST_STABLE" | jq -r '.published_at')
+            IS_PRERELEASE=$(echo "$LATEST_STABLE" | jq -r '.prerelease')
             
-            TAG_NAME=$(echo "$TAG_RESPONSE" | jq -r '.tag_name')
-            PUBLISHED_AT=$(echo "$TAG_RESPONSE" | jq -r '.published_at')
+            echo "找到最新正式版本: $TAG_NAME, 发布时间: $PUBLISHED_AT, 预发布标志: $IS_PRERELEASE"
             
-            # 收集所有平台的下载URL
-            LINUX_AMD64_URL=$(echo "$TAG_RESPONSE" | jq -r '.assets[] | select(.name | contains("linux_amd64.tar.gz")) | .browser_download_url')
-            LINUX_ARM64_URL=$(echo "$TAG_RESPONSE" | jq -r '.assets[] | select(.name | contains("linux_arm64.tar.gz")) | .browser_download_url')
+            # 收集下载URL
+            LINUX_AMD64_URL=$(echo "$LATEST_STABLE" | jq -r '.assets[] | select(.name | contains("linux_amd64.tar.gz")) | .browser_download_url')
+            LINUX_ARM64_URL=$(echo "$LATEST_STABLE" | jq -r '.assets[] | select(.name | contains("linux_arm64.tar.gz")) | .browser_download_url')
+            
+            echo "下载URL:"
+            echo "AMD64: $LINUX_AMD64_URL"
+            echo "ARM64: $LINUX_ARM64_URL"
             
             # 创建正式发布JSON
-            echo '{
-              "type": "stable",
-              "tag_name": "'$TAG_NAME'",
-              "published_at": "'$PUBLISHED_AT'",
-              "downloads": {
-                "linux_amd64": "'$LINUX_AMD64_URL'",
-                "linux_arm64": "'$LINUX_ARM64_URL'"
-              }
-            }' > last_release_temp.json
+            cat > last_release_temp.json << EOF
+{
+  "type": "stable",
+  "tag_name": "$TAG_NAME",
+  "published_at": "$PUBLISHED_AT",
+  "is_prerelease": $IS_PRERELEASE,
+  "downloads": {
+    "linux_amd64": "$LINUX_AMD64_URL",
+    "linux_arm64": "$LINUX_ARM64_URL"
+  }
+}
+EOF
             
             # 检查是否需要更新
-            if [ -z "${{ env.PREV_STABLE_TAG }}" ] || [ "$(printf '%s\n' "${{ env.PREV_STABLE_TAG }}" "$TAG_NAME" | sort -V | head -n 1)" != "$TAG_NAME" ]; then
-              echo "发现新版正式发布，标签: $TAG_NAME"
+            if [ -z "${{ env.PREV_STABLE_TAG }}" ] || [ "${{ env.PREV_STABLE_TAG }}" != "$TAG_NAME" ]; then
+              echo "发现新版正式发布，标签: $TAG_NAME (之前: ${{ env.PREV_STABLE_TAG }})"
               echo "STABLE_NEED_UPDATE=true" >> $GITHUB_ENV
               mv last_release_temp.json last_release.json
             else
-              echo "正式版本未变化"
+              echo "正式版本未变化 (当前: $TAG_NAME, 之前: ${{ env.PREV_STABLE_TAG }})"
               rm last_release_temp.json
             fi
           else
-            echo "未找到以v开头的正式发布版本"
+            echo "未找到以v开头的版本"
           fi
 
       - name: 更新记录并触发构建
@@ -145,19 +178,37 @@ jobs:
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
+          echo "=== 更新记录 ==="
+          echo "预发布更新: ${{ env.PRE_NEED_UPDATE }}"
+          echo "正式版更新: ${{ env.STABLE_NEED_UPDATE }}"
+          
           # 创建合并的版本信息文件
-          echo '{
-            "pre": $([ "$PRE_NEED_UPDATE" = "true" ] && cat pre_release.json || echo 'null'),
-            "stable": $([ "$STABLE_NEED_UPDATE" = "true" ] && cat last_release.json || echo 'null')
-          }' > release_info.json
+          if [ "$PRE_NEED_UPDATE" = "true" ] && [ -f "pre_release.json" ]; then
+            PRE_CONTENT=$(cat pre_release.json)
+          else
+            PRE_CONTENT="null"
+          fi
+          
+          if [ "$STABLE_NEED_UPDATE" = "true" ] && [ -f "last_release.json" ]; then
+            STABLE_CONTENT=$(cat last_release.json)
+          else
+            STABLE_CONTENT="null"
+          fi
+          
+          cat > release_info.json << EOF
+{
+  "pre": $PRE_CONTENT,
+  "stable": $STABLE_CONTENT
+}
+EOF
           
           git config user.name "github-actions"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pre_release.json last_release.json release_info.json
-          git commit -m "更新SealDice版本信息"
+          git commit -m "更新SealDice版本信息" || echo "没有变化需要提交"
           git push "https://${{ github.actor }}:$GH_PAT@github.com/${{ github.repository }}.git"
           
-          # 触发构建工作流并传递类型参数
+          # 触发构建工作流
           if [ "$PRE_NEED_UPDATE" = "true" ]; then
             echo "触发预发布版本构建"
             curl -X POST \
