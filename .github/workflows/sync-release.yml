@@ -1,3 +1,44 @@
+name: Sync SealDice Releases
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # 加载之前记录的信息
+      - name: 加载版本信息
+        id: load_info
+        run: |
+          # 预发布信息
+          if [ -f "pre_release.json" ]; then
+            echo "PREV_PRE_COMMIT=$(jq -r '.commit_hash' pre_release.json)" >> $GITHUB_ENV
+            echo "PREV_PRE_DATE=$(jq -r '.date' pre_release.json)" >> $GITHUB_ENV
+          else
+            echo "PREV_PRE_COMMIT=" >> $GITHUB_ENV
+            echo "PREV_PRE_DATE=" >> $GITHUB_ENV
+          fi
+          
+          # 正式发布信息
+          if [ -f "last_release.json" ]; then
+            echo "PREV_STABLE_TAG=$(jq -r '.tag_name' last_release.json)" >> $GITHUB_ENV
+            echo "PREV_STABLE_DATE=$(jq -r '.published_at' last_release.json)" >> $GITHUB_ENV
+          else
+            echo "PREV_STABLE_TAG=" >> $GITHUB_ENV
+            echo "PREV_STABLE_DATE=" >> $GITHUB_ENV
+          fi
+
 # 检查预发布版本更新 - 使用 pre-release 标签
       - name: 检查预发布更新
         id: check_pre_release
@@ -67,4 +108,131 @@ EOF
             fi
           else
             echo "未找到pre-release标签的版本"
+          fi
+
+      # 检查正式版本更新 - 使用以v开头的版本
+      - name: 检查正式发布更新
+        id: check_stable_release
+        continue-on-error: true
+        run: |
+          # 获取所有发布信息
+          RESPONSE=$(curl -s \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/sealdice/sealdice-build/releases")
+          
+          echo "=== 正式版本检查 ==="
+          
+          # 筛选以v开头的版本（不管prerelease标志）
+          STABLE_RELEASES=$(echo "$RESPONSE" | jq '[.[] | select(.tag_name | test("^v"))]')
+          
+          echo "所有以v开头的版本："
+          echo "$STABLE_RELEASES" | jq '.[] | {tag_name, prerelease, published_at}' | head -10
+          
+          # 获取最新的正式发布版本（按发布时间排序）
+          LATEST_STABLE=$(echo "$STABLE_RELEASES" | jq 'sort_by(.published_at) | last')
+          
+          if [ "$(echo "$LATEST_STABLE" | jq -r 'if . == null then "null" else "found" end')" == "found" ]; then
+            TAG_NAME=$(echo "$LATEST_STABLE" | jq -r '.tag_name')
+            PUBLISHED_AT=$(echo "$LATEST_STABLE" | jq -r '.published_at')
+            IS_PRERELEASE=$(echo "$LATEST_STABLE" | jq -r '.prerelease')
+            
+            echo "找到最新正式版本: $TAG_NAME, 发布时间: $PUBLISHED_AT, 预发布标志: $IS_PRERELEASE"
+            
+            # 收集下载URL
+            LINUX_AMD64_URL=$(echo "$LATEST_STABLE" | jq -r '.assets[] | select(.name | contains("linux_amd64.tar.gz")) | .browser_download_url')
+            LINUX_ARM64_URL=$(echo "$LATEST_STABLE" | jq -r '.assets[] | select(.name | contains("linux_arm64.tar.gz")) | .browser_download_url')
+            
+            echo "下载URL:"
+            echo "AMD64: $LINUX_AMD64_URL"
+            echo "ARM64: $LINUX_ARM64_URL"
+            
+            # 创建正式发布JSON
+            cat > last_release_temp.json << EOF
+{
+  "type": "stable",
+  "tag_name": "$TAG_NAME",
+  "published_at": "$PUBLISHED_AT",
+  "is_prerelease": $IS_PRERELEASE,
+  "downloads": {
+    "linux_amd64": "$LINUX_AMD64_URL",
+    "linux_arm64": "$LINUX_ARM64_URL"
+  }
+}
+EOF
+            
+            # 检查是否需要更新
+            if [ -z "${{ env.PREV_STABLE_TAG }}" ] || [ "${{ env.PREV_STABLE_TAG }}" != "$TAG_NAME" ]; then
+              echo "发现新版正式发布，标签: $TAG_NAME (之前: ${{ env.PREV_STABLE_TAG }})"
+              echo "STABLE_NEED_UPDATE=true" >> $GITHUB_ENV
+              mv last_release_temp.json last_release.json
+            else
+              echo "正式版本未变化 (当前: $TAG_NAME, 之前: ${{ env.PREV_STABLE_TAG }})"
+              rm last_release_temp.json
+            fi
+          else
+            echo "未找到以v开头的版本"
+          fi
+
+      - name: 更新记录并触发构建
+        if: env.PRE_NEED_UPDATE == 'true' || env.STABLE_NEED_UPDATE == 'true'
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          echo "=== 更新记录 ==="
+          echo "预发布更新: ${{ env.PRE_NEED_UPDATE }}"
+          echo "正式版更新: ${{ env.STABLE_NEED_UPDATE }}"
+          
+          # 创建合并的版本信息文件
+          if [ "$PRE_NEED_UPDATE" = "true" ] && [ -f "pre_release.json" ]; then
+            PRE_CONTENT=$(cat pre_release.json)
+          else
+            PRE_CONTENT="null"
+          fi
+          
+          if [ "$STABLE_NEED_UPDATE" = "true" ] && [ -f "last_release.json" ]; then
+            STABLE_CONTENT=$(cat last_release.json)
+          else
+            STABLE_CONTENT="null"
+          fi
+          
+          cat > release_info.json << EOF
+{
+  "pre": $PRE_CONTENT,
+  "stable": $STABLE_CONTENT
+}
+EOF
+          
+          git config user.name "github-actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pre_release.json last_release.json release_info.json
+          git commit -m "更新SealDice版本信息" || echo "没有变化需要提交"
+          git push "https://${{ github.actor }}:$GH_PAT@github.com/${{ github.repository }}.git"
+          
+          # 触发构建工作流
+          if [ "$PRE_NEED_UPDATE" = "true" ]; then
+            echo "触发预发布版本构建"
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/build-sealdice.yml/dispatches" \
+              -d '{
+                "ref": "main",
+                "inputs": {
+                  "build_type": "pre-release"
+                }
+              }'
+          fi
+          
+          if [ "$STABLE_NEED_UPDATE" = "true" ]; then
+            echo "触发正式版本构建"
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/build-sealdice.yml/dispatches" \
+              -d '{
+                "ref": "main",
+                "inputs": {
+                  "build_type": "stable"
+                }
+              }'
           fi
