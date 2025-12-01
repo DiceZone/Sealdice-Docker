@@ -23,6 +23,8 @@
 ```bash
 curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh
 ```
+- 部署1个海豹
+- 使用latest版本渠道
 
 ### 进阶用法
 
@@ -30,13 +32,15 @@ curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./s
 ```bash
 curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -n 3
 ```
-部署3个海豹，然后按提示输入3个不同的QQ号。
+- 部署3个海豹
+- 使用latest版本渠道
 
 #### 指定版本渠道
 ```bash
 curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -c stable
 ```
-使用stable版本渠道部署海豹。
+- 部署1个海豹
+- 使用stable版本渠道
 
 #### 组合使用
 ```bash
@@ -82,5 +86,3 @@ A: 脚本最后会显示所有访问地址，注意保存，也可以查看compo
 **Q: 如何启动其他海豹？**
 A: 登录MCSManager面板，手动点击启动其他实例
 
----
-💡 **提示**：新手建议直接运行 `curl -L https://dice.zone/bash/sealdice_onekey.sh -o sealdice_onekey.sh && chmod +x sealdice_onekey.sh && bash sealdice_onekey.sh`，按提示操作即可！
