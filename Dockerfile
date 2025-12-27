@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 创建目录结构
 RUN mkdir -p /sealdice /release-backup /sealdice/data /sealdice/backup
 
-# 设置工作目录 - 关键添加
+# 设置工作目录
 WORKDIR /sealdice
 
 # 声明卷
@@ -54,14 +54,16 @@ RUN set -eux; \
     \
     echo "下载URL: $DOWNLOAD_URL"; \
     \
-    # 下载并解压到sealdice目录
+    # 下载并解压
     wget -q "$DOWNLOAD_URL" -O /tmp/sealdice.tar.gz; \
-    tar -xzf /tmp/sealdice.tar.gz -C /sealdice ; \
+    tar -xzf /tmp/sealdice.tar.gz -C /release-backup ; \
     rm /tmp/sealdice.tar.gz; \
-    chmod -R 755 /sealdice/*
+    chmod -R 755 /release-backup/*
 
-# 简化入口脚本 - 不再需要cd
+# 生成入口脚本
 RUN echo "#!/bin/sh" > /entrypoint.sh && \
+    echo "cp -r /release-backup/* /sealdice/" >> /entrypoint.sh && \
+    echo "cd /sealdice" >> /entrypoint.sh && \
     echo "./sealdice-core" >> /entrypoint.sh && \
     chmod +x /entrypoint.sh
 
