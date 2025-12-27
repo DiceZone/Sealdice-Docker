@@ -1,7 +1,7 @@
 {
     "type": "stable",
-    "tag_name": "v1.5.0",
-    "published_at": "2025-10-09T15:51:42Z",
+    "tag_name": "v1.5.1",
+    "published_at": "2025-10-10T15:51:42Z",
     "downloads": {
       "linux_amd64": "https://github.com/sealdice/sealdice-build/releases/download/v1.5.1/sealdice-core_1.5.1_linux_amd64.tar.gz",
       "linux_arm64": "https://github.com/sealdice/sealdice-build/releases/download/v1.5.1/sealdice-core_1.5.1_linux_arm64.tar.gz"
