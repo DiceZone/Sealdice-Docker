@@ -144,7 +144,7 @@ jobs:
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          # 修复echo语句中的语法错误
+          # 创建合并的版本信息文件
           echo '{
             "pre": '"$([ "$PRE_NEED_UPDATE" = "true" ] && cat pre_release.json || echo 'null')"',
             "stable": '"$([ "$STABLE_NEED_UPDATE" = "true" ] && cat last_release.json || echo 'null')"'
