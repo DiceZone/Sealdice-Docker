@@ -264,7 +264,7 @@ EOF
 {
     "nickname": "SealDice-$ACCOUNT",
     "startCommand": "docker compose up",
-    "stopCommand": "^c",
+    "stopCommand": "^C",
     "cwd": "$SEALDICE_DIR",
     "ie": "utf8",
     "oe": "utf8",
