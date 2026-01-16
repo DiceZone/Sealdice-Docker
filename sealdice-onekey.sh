@@ -287,7 +287,7 @@ EOF
     "actionCommandList": [],
     "terminalOption": {
         "haveColor": false,
-        "pty": false,
+        "pty": true,
         "ptyWindowCol": 164,
         "ptyWindowRow": 40
     },
