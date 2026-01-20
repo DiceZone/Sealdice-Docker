@@ -57,8 +57,8 @@ curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./s
 
 ### 🔧 版本渠道说明
 
-- `latest` : 最新版本（推荐）
-- `stable` : 稳定版本
+- `latest` : 最新版本
+- `stable` : 稳定版本（推荐）
 - `pre` : 预发布版本
 
 ### 📱 访问地址
