@@ -21,10 +21,10 @@
 
 ### 基础用法（推荐新手）
 ```bash
-curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh
+curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -c stable
 ```
 - 部署1个海豹
-- 使用latest版本渠道
+- 使用stable（正式版）版本渠道
 
 ### 进阶用法
 
@@ -33,14 +33,14 @@ curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./s
 curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -n 3
 ```
 - 部署3个海豹
-- 使用latest版本渠道
+- 使用latest（含测试版、预发布版的最新版本）版本渠道
 
 #### 指定版本渠道
 ```bash
-curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -c stable
+curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -c stable 
 ```
 - 部署1个海豹
-- 使用stable版本渠道
+- 使用stable（正式版）版本渠道
 
 #### 组合使用
 ```bash
