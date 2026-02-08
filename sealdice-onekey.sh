@@ -449,7 +449,7 @@ done
 echo ""
 echo "MCSManager面板账号密码请在登录后自行设置"
 echo "已创建所有海豹实例并开始拉取镜像，请访问面板页面查看"
-echo "若控制台的二维码被截断，请进入文件管理。扫描 qrcode-qrcode.png"
+echo "若控制台的二维码被截断，请进入文件管理。扫描 qrcode 文件夹的 qrcode.png"
 echo "请在每个骰子成功扫码登录后前往海豹WebUI"
 echo "在账号设置里添加Onebot11正向WS，连接地址为 ws://napcat:1234"
 echo ""
