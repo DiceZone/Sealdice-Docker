@@ -1,88 +1,65 @@
 # sealdice-docker
-海豹骰非官方Docker镜像，补全运行库，允许使用内置Lagrange登录.
+海豹骰非官方Docker镜像，补全运行库，支持内置Lagrange登录。
 
 [Docker Hub](https://hub.docker.com/r/shiaworkshop/sealdice)
 
-镜像会自动根据上游发布而构建，支持amd64/arm64
+镜像自动根据上游发布构建，支持 amd64/arm64 架构。
 
-## 标签说明
+## 镜像说明
 
-本镜像的构建分为三种大类构成
+镜像构建分为三类：
 
-- 最新发布版本(latest) -> 对应所有通道中最新的版本
-- 正式发布版本(release) -> 对应有版本号的正式发布版本
-- 抢先体验版本(pre-release) -> 对应预发布通道的版本
+- **最新发布版本 (latest)** - 对应所有通道中的最新版本
+- **正式发布版本 (release)** - 对应有版本号的正式发布版本
+- **抢先体验版本 (pre-release)** - 对应预发布通道的版本
 
-正式发布版本(release)标签会推送为： `latest` / `v1.x.x` / `stable`
+正式发布版本 (release) 标签为：`latest` / `v1.x.x` / `stable`
 
-抢先体验版本(pre-release)标签会推送为： `latest` / `10aa805`(commit hash) / `pre`
+抢先体验版本 (pre-release) 标签为：`latest` / `10aa805` (commit hash) / `pre`
 
-## 🚀 一键部署脚本使用说明
+
+## 一键部署脚本使用说明
 
 ### 基础用法（推荐新手）
 ```bash
-curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -c stable
+curl -sLO dice.zone/bash/sealdice_onekey.sh&&bash sealdice_onekey.sh
 ```
-- 部署1个海豹
-- 使用stable（正式版）版本渠道
+- 下载脚本后执行，支持交互式引导
+- 无需记忆参数，按提示操作即可
 
-### 进阶用法
-
-#### 部署多个海豹（最多99个）
+### 参数用法
 ```bash
-curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -n 3
+curl -sLO dice.zone/bash/sealdice_onekey.sh&&bash sealdice_onekey.sh -n 3 -c stable
 ```
-- 部署3个海豹
-- 使用latest（含测试版、预发布版的最新版本）版本渠道
+- 部署 3 个海豹
+- 使用 stable（稳定版）版本渠道
 
-#### 指定版本渠道
-```bash
-curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -c stable 
-```
-- 部署1个海豹
-- 使用stable（正式版）版本渠道
+### 参数说明
 
-#### 组合使用
-```bash
-curl -LO dice.zone/bash/sealdice_onekey.sh && chmod +x sealdice_onekey.sh && ./sealdice_onekey.sh -n 4 -c latest
-```
-- 部署4个海豹
-- 使用latest版本渠道
+- `-n`：部署海豹数量（1-99，默认 1 个）
+- `-c`：版本渠道（latest/stable/pre，默认 latest）
 
-### 📋 参数说明
+### 版本渠道说明
 
-- `-n` : 部署海豹数量（1-99，默认1个）
-- `-c` : 版本渠道（latest/stable/pre，默认latest）
+- `latest`：最新版本
+- `stable`：稳定版本（推荐）
+- `pre`：预发布版本
 
+### 访问地址
 
-### 🔧 版本渠道说明
+脚本运行完成后会显示以下访问地址：
+- **[MCSManager 管理面板](https://github.com/MCSManager/MCSManager)**：端口 23333，用于管理容器启停
+- **[海豹](https://github.com/sealdice/sealdice-build) WebUI**：端口 32110 开始递增，每个海豹实例端口不同
+- **[NapCat](https://github.com/NapNeko/NapCat-Docker) 管理界面**：端口 22000 开始递增，每个海豹实例端口不同
 
-- `latest` : 最新版本
-- `stable` : 稳定版本（推荐）
-- `pre` : 预发布版本
+### 使用方法
 
-### 📱 访问地址
-
-脚本运行完成后会显示：
-- **[MCSManager管理面板](https://github.com/MCSManager/MCSManager)** : 端口23333，用来管理海豹
-- **[海豹](https://github.com/sealdice/sealdice-build)WebUI** : 端口32110开始，每个海豹端口不同
-- **[NapCat](https://github.com/NapNeko/NapCat-Docker)管理** : 端口22000开始，每个海豹端口不同
-
-### ⚠️ 注意事项
-
-1. **需要开放端口**：在云服务器控制台开放显示的端口
-2. **QQ号不能重复**：每个海豹必须使用不同的QQ号
-3. **第一个自动启动**：只有第一个海豹会自动启动，其他需要手动启动
-4. **等待镜像下载**：第一次运行需要下载镜像，请耐心等待
-
-### 🛠️ 常见问题
-
-**Q: 脚本运行失败？**
-A: 检查网络连接，确保能访问GitHub和Docker Hub
-
-**Q: 忘记了访问地址？**
-A: 脚本最后会显示所有访问地址，注意保存，也可以查看compose文件
-
-**Q: 如何启动其他海豹？**
-A: 登录MCSManager面板，手动点击启动其他实例
-
+1. 脚本完成后会显示所有访问地址和端口，请妥善保存
+2. 打开浏览器访问 MCSManager 面板，设置管理员账号密码
+3. 进入面板后点击对应实例卡片，进入控制台查看运行状态
+4. 在控制台查看字符形态二维码进行扫码登录
+5. 若字符二维码显示不全，可进入文件管理的 `qrcode` 文件夹扫描图片二维码
+6. 若显示登录成功但骰子无响应，点击实例的 `重启` 按钮
+7. 为每个海豹实例重复上述登录步骤
+8. **切勿在海豹 WebUI 内点击更新**，如需更新请通过 MCSManager 面板操作。点击 `关闭` 实例，然后点击 `更新`。
+9. 如需调整配置，可编辑对应实例目录下的 `docker-compose.yml` 文件
