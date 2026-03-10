@@ -340,8 +340,8 @@ services:
       - "\${PWD}/backups:/sealdice/backups"
     networks:
       - sealdice
-    depends_on:
-      - napcat
+    environment:
+      - MODE=napcat
 
   napcat:
     image: mlikiowa/napcat-docker:latest
