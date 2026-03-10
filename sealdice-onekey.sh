@@ -338,6 +338,7 @@ services:
     volumes:
       - "\${PWD}/data:/sealdice/data"
       - "\${PWD}/backups:/sealdice/backups"
+      - "\${PWD}/napcat/config:/app/napcat/config"
     networks:
       - sealdice
     environment:
