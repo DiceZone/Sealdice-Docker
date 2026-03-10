@@ -267,6 +267,7 @@ EOF
     
     log_info "serve.yaml 修改完成"
 fi
+fi
 
 # 4. 处理 dice.yaml
 DICE_FILE="data/dice.yaml"
