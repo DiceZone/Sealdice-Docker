@@ -22,14 +22,14 @@
 
 ### 基础用法（推荐新手）
 ```bash
-curl -sLO dice.zone/bash/sealdice_onekey.sh&&bash sealdice_onekey.sh
+bash <(curl -sL seal.dice.zone)
 ```
 - 下载脚本后执行，支持交互式引导
 - 无需记忆参数，按提示操作即可
 
 ### 参数用法
 ```bash
-curl -sLO dice.zone/bash/sealdice_onekey.sh&&bash sealdice_onekey.sh -n 3 -c stable
+bash <(curl -sL seal.dice.zone) -n 3 -c stable
 ```
 - 部署 3 个海豹
 - 使用 stable（稳定版）版本渠道
