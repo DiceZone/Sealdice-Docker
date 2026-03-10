@@ -66,13 +66,14 @@ ARG TARGETARCH
 RUN wget "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_${TARGETARCH}" -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq
 
 # 生成入口脚本
-COPY configure-napcat.sh /sealdice/configure-napcat.sh
-RUN chmod +x /sealdice/configure-napcat.sh
+COPY configure-napcat.sh /configure-napcat.sh
+RUN chmod +x /configure-napcat.sh
 RUN echo "#!/bin/sh" > /entrypoint.sh && \
     echo "set -e" >> /entrypoint.sh && \
     echo "cp -r /release-backup/* /sealdice/" >> /entrypoint.sh && \
     echo "cd /sealdice" >> /entrypoint.sh && \
     echo "if [ \"\$MODE\" = \"napcat\" ]; then" >> /entrypoint.sh && \
+    echo "    cp /configure-napcat.sh ./configure-napcat.sh" >> /entrypoint.sh && \
     echo "    ./configure-napcat.sh || { echo \"configure-napcat.sh failed\"; exit 1; }" >> /entrypoint.sh && \
     echo "fi" >> /entrypoint.sh && \
     echo "./sealdice-core" >> /entrypoint.sh && \
