@@ -90,7 +90,7 @@ imSession:
         - baseInfo:
             id: $(uuidgen)
             nickname: ""
-            state: 2
+            state: 1
             userId: QQ:$DICE_QQ
             groupNum: 0
             cmdExecutedNum: 0
