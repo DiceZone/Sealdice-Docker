@@ -338,10 +338,11 @@ services:
     volumes:
       - "\${PWD}/data:/sealdice/data"
       - "\${PWD}/backups:/sealdice/backups"
+      - "\${PWD}/napcat/config:/app/napcat/config"
     networks:
       - sealdice
-    depends_on:
-      - napcat
+    environment:
+      - MODE=napcat
 
   napcat:
     image: mlikiowa/napcat-docker:latest
