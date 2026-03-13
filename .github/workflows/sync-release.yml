@@ -159,7 +159,7 @@ jobs:
           # 触发构建工作流
           if [ "$STABLE_NEED_UPDATE" = "true" ]; then
             echo "触发正式版本构建"
-            # 构建正式版
+            # 构建正式版（标准镜像）
             curl -X POST \
               -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
               -H "Accept: application/vnd.github.v3+json" \
@@ -171,8 +171,21 @@ jobs:
                 }
               }'
             
+            echo "触发正式版本slim构建"
+            # 构建正式版slim镜像
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/build-sealdice-slim.yml/dispatches" \
+              -d '{
+                "ref": "main",
+                "inputs": {
+                  "build_type": "stable"
+                }
+              }'
+            
             echo "触发预发布版本构建（同步正式版到预发布渠道）"
-            # 同时构建预发布版，方便测试用户升级
+            # 同时构建预发布版（标准镜像），方便测试用户升级
             curl -X POST \
               -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
               -H "Accept: application/vnd.github.v3+json" \
@@ -183,13 +196,39 @@ jobs:
                   "build_type": "pre-release"
                 }
               }'
+            
+            echo "触发预发布版本slim构建（同步正式版到预发布渠道）"
+            # 同时构建预发布版slim镜像
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/build-sealdice-slim.yml/dispatches" \
+              -d '{
+                "ref": "main",
+                "inputs": {
+                  "build_type": "pre-release"
+                }
+              }'
           elif [ "$PRE_NEED_UPDATE" = "true" ]; then
             echo "触发预发布版本构建"
-            # 只构建预发布版
+            # 构建预发布版（标准镜像）
             curl -X POST \
               -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
               -H "Accept: application/vnd.github.v3+json" \
               "https://api.github.com/repos/${{ github.repository }}/actions/workflows/build-sealdice.yml/dispatches" \
+              -d '{
+                "ref": "main",
+                "inputs": {
+                  "build_type": "pre-release"
+                }
+              }'
+            
+            echo "触发预发布版本slim构建"
+            # 构建预发布版slim镜像
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/build-sealdice-slim.yml/dispatches" \
               -d '{
                 "ref": "main",
                 "inputs": {

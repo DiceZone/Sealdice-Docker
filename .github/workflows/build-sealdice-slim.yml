@@ -1,0 +1,131 @@
+name: Build and Push SealDice Slim Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type (pre-release/stable)'
+        required: false
+        default: 'stable'
+  repository_dispatch:
+
+env:
+  DOCKERHUB_REPO: shiaworkshop/sealdice
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: 确定构建类型
+        id: determine_type
+        run: |
+          # 正确获取 workflow_dispatch 输入参数
+          if [ -n "${{ github.event.inputs.build_type }}" ]; then
+            INPUT_TYPE="${{ github.event.inputs.build_type }}"
+          else
+            INPUT_TYPE="stable"  # 默认值
+          fi
+          
+          echo "接收到的输入类型: $INPUT_TYPE"
+          
+          # 处理输入参数
+          if [ "$INPUT_TYPE" != "auto" ]; then
+            BUILD_TYPE="$INPUT_TYPE"
+            echo "使用传入的构建类型: $BUILD_TYPE"
+          else
+            echo "自动检测构建类型"
+            if [ -f "last_release.json" ]; then
+              BUILD_TYPE="stable"
+            elif [ -f "pre_release.json" ]; then
+              BUILD_TYPE="pre-release"
+            else
+              echo "错误：找不到任何版本信息文件"
+              exit 1
+            fi
+          fi
+          
+          # 设置配置文件
+          if [ "$BUILD_TYPE" = "pre-release" ]; then
+            CONFIG_FILE="pre_release.json"
+          else
+            CONFIG_FILE="last_release.json"
+          fi
+          
+          echo "最终构建类型: $BUILD_TYPE"
+          echo "使用配置文件: $CONFIG_FILE"
+          echo "BUILD_TYPE=$BUILD_TYPE" >> $GITHUB_ENV
+          echo "CONFIG_FILE=$CONFIG_FILE" >> $GITHUB_ENV
+      
+      - name: 获取版本标签
+        id: get_version
+        run: |
+          # 确保配置文件存在
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "错误：配置文件 $CONFIG_FILE 不存在"
+            exit 1
+          fi
+          
+          # 打印配置文件内容用于调试
+          echo "配置文件内容:"
+          cat "$CONFIG_FILE"
+          echo ""
+          
+          # 根据不同构建类型提取标签
+          case "$BUILD_TYPE" in
+            "pre-release")
+              # 预发布版本使用 commit_hash
+              COMMIT_TAG=$(jq -r '.commit_hash' "$CONFIG_FILE" | cut -c1-7)
+              MAIN_TAG="pre-slim"
+              ;;
+            "stable")
+              # 稳定版本使用 tag_name
+              COMMIT_TAG=$(jq -r '.tag_name' "$CONFIG_FILE")
+              MAIN_TAG="stable-slim"
+              ;;
+            *)
+              echo "不支持的构建类型: $BUILD_TYPE"
+              exit 1
+              ;;
+          esac
+          
+          # 验证标签是否有效
+          if [ -z "$COMMIT_TAG" ] || [ "$COMMIT_TAG" = "null" ]; then
+            echo "错误：无法从 $CONFIG_FILE 获取版本标签"
+            exit 1
+          fi
+          
+          echo "MAIN_TAG: $MAIN_TAG"
+          echo "COMMIT_TAG: $COMMIT_TAG"
+          
+          echo "MAIN_TAG=$MAIN_TAG" >> $GITHUB_ENV
+          echo "COMMIT_TAG=$COMMIT_TAG" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: 构建并推送镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile-slim
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            BUILD_TYPE=${{ env.BUILD_TYPE }}
+            CONFIG_FILE=${{ env.CONFIG_FILE }}
+          tags: |
+            ${{ env.DOCKERHUB_REPO }}:${{ env.MAIN_TAG }}
+            ${{ env.DOCKERHUB_REPO }}:${{ env.COMMIT_TAG }}-slim
+            ${{ env.DOCKERHUB_REPO }}:slim
