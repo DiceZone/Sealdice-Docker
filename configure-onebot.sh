@@ -111,7 +111,7 @@ imSession:
           adapter:
             isReverse: false
             reverseAddr: ""
-            connectUrl: '"$CONNECT_URL"'
+            connectUrl: $CONNECT_URL
             accessToken: ""
             useInPackGoCqhttp: false
             builtinMode: gocq
@@ -135,7 +135,7 @@ else
     log_info "找到现有 serve.yaml，检查是否需要修改"
     
     # 检查是否已经配置了连接
-    existing_napcat_config=$(yq ".imSession.endPoints[] | select(.adapter.connectUrl == \""$CONNECT_URL"\") | .baseInfo.userId" "$SERVE_FILE" 2>/dev/null || echo "")
+    existing_napcat_config=$(yq ".imSession.endPoints[] | select(.adapter.connectUrl == \"$CONNECT_URL\") | .baseInfo.userId" "$SERVE_FILE" 2>/dev/null || echo "")
     if [[ -n "$existing_napcat_config" ]]; then
             log_info "检测到已存在 ${MODE} 配置: $existing_napcat_config，跳过 serve.yaml 修改"
             # 跳过整个 serve.yaml 处理逻辑，直接处理 dice.yaml
@@ -192,7 +192,7 @@ EOF
                 .imSession.endPoints[$endpoint_index].baseInfo.isPublic = $original_is_public |
                 .imSession.endPoints[$endpoint_index].adapter.isReverse = false |
                 .imSession.endPoints[$endpoint_index].adapter.reverseAddr = \"\" |
-                .imSession.endPoints[$endpoint_index].adapter.connectUrl = \""$CONNECT_URL"\" |
+                .imSession.endPoints[$endpoint_index].adapter.connectUrl = \"$CONNECT_URL\" |
                 .imSession.endPoints[$endpoint_index].adapter.accessToken = \"\" |
                 .imSession.endPoints[$endpoint_index].adapter.useInPackGoCqhttp = false |
                 .imSession.endPoints[$endpoint_index].adapter.builtinMode = \"gocq\" |
@@ -235,7 +235,7 @@ baseInfo:
 adapter:
   isReverse: false
   reverseAddr: ""
-  connectUrl: '"$CONNECT_URL"'
+  connectUrl: $CONNECT_URL
   accessToken: ""
   useInPackGoCqhttp: false
   builtinMode: gocq

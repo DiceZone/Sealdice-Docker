@@ -18,7 +18,7 @@ fi
 IMAGE_TAG="latest"  # 默认使用 latest
 CHANNEL=""          # 暂存渠道
 SEALDICE_COUNT=""   # 海豹数量参数
-LOGIN_METHOD="napcat"  # 登录方式: napcat 或 llbot，默认为 napcat
+LOGIN_METHOD="napcat"  # 登录方式: napcat/llbot/builtin，默认为 napcat
 
 # 允许的渠道值
 ALLOWED_CHANNELS=("latest" "stable" "pre")
@@ -74,15 +74,17 @@ if [ $# -eq 0 ]; then
     echo "请选择登录方式："
     echo "1) NapCat"
     echo "2) LLBot"
+    echo "3) 内置登录"
     
     while true; do
-        read -p "请输入选择 (1-2，默认1): " login_choice
+        read -p "请输入选择 (1-3，默认1): " login_choice
         login_choice=${login_choice:-1}
         
         case $login_choice in
             1) LOGIN_METHOD="napcat" ; break ;;
             2) LOGIN_METHOD="llbot" ; break ;;
-            *) echo "错误：请输入 1-2 之间的数字" ;;
+            3) LOGIN_METHOD="builtin" ; break ;;
+            *) echo "错误：请输入 1-3 之间的数字" ;;
         esac
     done
     
@@ -123,8 +125,8 @@ else
     
     # 验证登录方式参数
     if [ -n "$LOGIN_METHOD" ]; then
-      if [[ "$LOGIN_METHOD" != "napcat" && "$LOGIN_METHOD" != "llbot" ]]; then
-        echo "错误：-m 参数的值必须是 napcat 或 llbot"
+      if [[ "$LOGIN_METHOD" != "napcat" && "$LOGIN_METHOD" != "llbot" && "$LOGIN_METHOD" != "builtin" ]]; then
+        echo "错误：-m 参数的值必须是 napcat、llbot 或 builtin"
         exit 1
       fi
     fi
@@ -485,7 +487,7 @@ services:
       - "\${PWD}/data:/sealdice/data"
       - "\${PWD}/backups:/sealdice/backups"
       - "\${PWD}/llbot/config:/app/llbot/data:rw"
-      - "\${PWD}/qrcode:/data/temp"
+      - "\${PWD}/qrcode:/app/llbot/data/temp"
     depends_on:
       - pmhq
 
@@ -500,6 +502,9 @@ EOF
         # 为当前 LLBot 实例生成密码
         LLBOT_PASSWORD=$(generate_password)
         LLBOT_PASSWORDS+=("$LLBOT_PASSWORD")
+        
+        # 创建LLBot目录结构（先创建目录）
+        sudo mkdir -p "$SEALDICE_DIR/data" "$SEALDICE_DIR/backups" "$SEALDICE_DIR/llbot/config" "$SEALDICE_DIR/llbot/QQ_DATA"
         
         # 生成默认配置文件
         sudo tee "$SEALDICE_DIR/llbot/config/config_${ACCOUNT}.json" > /dev/null <<EOF
@@ -555,12 +560,39 @@ $LLBOT_PASSWORD
 EOF
         echo "LLBot WebUI 密码文件已创建"
         
-        # 创建LLBot目录结构
-        sudo mkdir -p "$SEALDICE_DIR/data" "$SEALDICE_DIR/backups" "$SEALDICE_DIR/llbot/config" "$SEALDICE_DIR/llbot/QQ_DATA"
-        
         # 设置LLBot目录权限
         sudo chmod -R 755 "$SEALDICE_DIR"
         sudo chmod -R 777 "$SEALDICE_DIR/llbot/config"
+    elif [ "$LOGIN_METHOD" == "builtin" ]; then
+        # 内置登录模式配置 - 仅海豹容器
+        sudo tee "$COMPOSE_FILE" > /dev/null <<EOF
+services:
+  sealdice:
+    image: shiaworkshop/sealdice:$IMAGE_TAG
+    container_name: sealdice-${ACCOUNT}
+    ports:
+      - "${SEALDICE_PORT}:3211"
+    volumes:
+      - "\${PWD}/data:/sealdice/data"
+      - "\${PWD}/backups:/sealdice/backups"
+    environment:
+      - MODE=builtin
+
+networks:
+  sealdice:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.$((100 + i)).0/24
+EOF
+        
+        # 创建基础目录结构
+        sudo mkdir -p "$SEALDICE_DIR/data" "$SEALDICE_DIR/backups"
+        
+        # 设置目录权限
+        sudo chmod -R 755 "$SEALDICE_DIR"
+        
+        echo "内置登录模式配置完成（无外部适配器）"
     else
         # NapCat 模式配置
         sudo tee "$COMPOSE_FILE" > /dev/null <<EOF
@@ -606,6 +638,9 @@ networks:
         - subnet: 192.168.$((100 + i)).0/24
 EOF
         
+        # 创建NapCat目录结构
+        sudo mkdir -p "$SEALDICE_DIR/data" "$SEALDICE_DIR/backups" "$SEALDICE_DIR/napcat/config" "$SEALDICE_DIR/napcat/QQ_DATA" "$SEALDICE_DIR/qrcode"
+        
         # 为 NapCat 生成密码并创建 webui.json
         NAPCAT_PASSWORD=$(generate_password)
         NAPCAT_PASSWORDS+=("$NAPCAT_PASSWORD")
@@ -621,9 +656,6 @@ EOF
     "disableNonLANAccess": false
 }
 EOF
-        
-        # 创建NapCat目录结构
-        sudo mkdir -p "$SEALDICE_DIR/data" "$SEALDICE_DIR/backups" "$SEALDICE_DIR/napcat/config" "$SEALDICE_DIR/napcat/QQ_DATA" "$SEALDICE_DIR/qrcode"
         
         # 设置NapCat目录权限
         sudo chmod -R 755 "$SEALDICE_DIR"
@@ -718,24 +750,38 @@ echo ""
 echo "============================================================"
 echo ""
 echo "立即访问 MCSManager 面板，账号密码请在访问时自行设置"
-echo "已创建所有海豹实例并开始拉取镜像，请登录面板页面查看并登录"
-echo "若控制台的二维码被截断，请进入文件管理，进入 qrcode 文件夹"
-echo "扫描 qrcode 文件夹的 qrcode.png 或 login-qrcode.png 来登录"
-echo "请在每个骰子成功扫码登录后前往海豹WebUI，为每个骰子设置一个密码"
+echo "已创建所有海豹实例并开始拉取镜像，请登录面板页面查看"
+
+if [ "$LOGIN_METHOD" == "builtin" ]; then
+    echo "稍后请直接访问各海豹的 WebUI 地址，在账号设置中配置内置登录"
+else
+    echo "若终端的登录二维码被截断，请进入文件管理"
+    if [ "$LOGIN_METHOD" == "napcat" ]; then
+        echo "扫描 qrcode 文件夹的 qrcode.png 来登录"
+        echo "或直接访问 NapCat WebUI 扫码登录"
+    elif [ "$LOGIN_METHOD" == "llbot" ]; then
+        echo "扫描 qrcode 文件夹的 login-qrcode.png 来登录"
+        echo "或直接访问 LLBot WebUI 扫码登录"
+    fi
+fi
+echo "请在每个骰子成功扫码登录后，前往海豹WebUI-综合设置-基础设置中设置 UI 界面密码"
 echo ""
+echo "============================================================"
 echo "需要开放的端口:"
 echo "  MCSManager: 23333, 24444"
 for i in "${!QQ_ACCOUNTS[@]}"; do
     SEALDICE_PORT=$((32110 + i))
     WEBUI_PORT=$((22000 + i))
     if [ "$LOGIN_METHOD" == "llbot" ]; then
-        echo "  海豹 $((i+1)): $SEALDICE_PORT, $WEBUI_PORT (LLBot)"
+        echo "  海豹 $((i+1)): $SEALDICE_PORT(SEALDICE), $WEBUI_PORT (LLBot)"
+    elif [ "$LOGIN_METHOD" == "builtin" ]; then
+        echo "  海豹 $((i+1)): $SEALDICE_PORT(SEALDICE), 无适配器端口"
     else
-        echo "  海豹 $((i+1)): $SEALDICE_PORT, $WEBUI_PORT (NapCat)"
+        echo "  海豹 $((i+1)): $SEALDICE_PORT(SEALDICE), $WEBUI_PORT (NapCat)"
     fi
 done
 echo "注意: 云服务器必须在控制台安全组（防火墙）中开放上述端口"
-echo "推荐直接在安全组（防火墙）中添加规则，允许TCP协议的20000-40000端口"
+echo "推荐直接在安全组（防火墙）中添加规则，允许TCP协议的 20000-40000 端口"
 echo "============================================================"
 echo "⚡要饭链接：https://afdian.com/a/dicezone"
 echo "⭐项目地址：https://github.com/ShiaBox/sealdice-docker"

@@ -29,15 +29,17 @@ bash <(curl -sL seal.dice.zone)
 
 ### 参数用法
 ```bash
-bash <(curl -sL seal.dice.zone) -n 3 -c stable
+bash <(curl -sL seal.dice.zone) -n 3 -c stable -m builtin
 ```
 - 部署 3 个海豹
 - 使用 stable（稳定版）版本渠道
+- 使用内置登录方式（仅海豹核心，无外部适配器）
 
 ### 参数说明
 
 - `-n`：部署海豹数量（1-99，默认 1 个）
 - `-c`：版本渠道（latest/stable/pre，默认 latest）
+- `-m`：登录方式（napcat/llbot，默认 napcat）
 
 ### 版本渠道说明
 
