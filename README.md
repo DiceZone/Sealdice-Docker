@@ -1,5 +1,5 @@
 # sealdice-docker
-海豹骰非官方Docker镜像，补全运行库，支持内置Lagrange登录。
+海豹骰非官方Docker镜像，补全运行库，支持内置Lagrange、Milky登录。
 
 [Docker Hub](https://hub.docker.com/r/shiaworkshop/sealdice)
 
@@ -50,7 +50,7 @@ bash <(curl -sL seal.dice.zone) -n 3 -c stable
 脚本运行完成后会显示以下访问地址：
 - **[MCSManager 管理面板](https://github.com/MCSManager/MCSManager)**：端口 23333，用于管理容器启停
 - **[海豹](https://github.com/sealdice/sealdice-build) WebUI**：端口 32110 开始递增，每个海豹实例端口不同
-- **[NapCat](https://github.com/NapNeko/NapCat-Docker) 管理界面**：端口 22000 开始递增，每个海豹实例端口不同
+- **[NapCat](https://github.com/NapNeko/NapCat-Docker) 或 [LLBot](https://github.com/LLOneBot/LuckyLilliaBot) 管理界面**：端口 22000 开始递增，每个海豹实例端口不同
 
 ### 使用方法
 

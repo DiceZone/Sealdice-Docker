@@ -68,15 +68,15 @@ RUN wget "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_${T
     rm /tmp/yq.tar.gz
 
 # 生成入口脚本
-COPY configure-napcat.sh /configure-napcat.sh
-RUN chmod +x /configure-napcat.sh
+COPY configure-onebot.sh /configure-onebot.sh
+RUN chmod +x /configure-onebot.sh
 RUN echo "#!/bin/sh" > /entrypoint.sh && \
     echo "set -e" >> /entrypoint.sh && \
     echo "cp -r /release-backup/* /sealdice/" >> /entrypoint.sh && \
     echo "cd /sealdice" >> /entrypoint.sh && \
-    echo "if [ \"\$MODE\" = \"napcat\" ]; then" >> /entrypoint.sh && \
-    echo "    cp /configure-napcat.sh ./configure-napcat.sh" >> /entrypoint.sh && \
-    echo "    ./configure-napcat.sh || { echo \"configure-napcat.sh failed\"; exit 1; }" >> /entrypoint.sh && \
+    echo "if [ \"\$MODE\" = \"napcat\" ] || [ \"\$MODE\" = \"llbot\" ]; then" >> /entrypoint.sh && \
+    echo "    cp /configure-onebot.sh ./configure-onebot.sh" >> /entrypoint.sh && \
+    echo "    ./configure-onebot.sh || { echo \"configure-onebot.sh failed\"; exit 1; }" >> /entrypoint.sh && \
     echo "fi" >> /entrypoint.sh && \
     echo "./sealdice-core --container-mode" >> /entrypoint.sh && \
     chmod +x /entrypoint.sh

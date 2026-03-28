@@ -1,9 +1,24 @@
 #!/bin/bash
 
+# 检查并安装 openssl（如果不存在）- 仅适配 Ubuntu/Debian
+if ! command -v openssl &> /dev/null; then
+    echo "检测到系统未安装 openssl，正在安装..."
+    sudo apt-get update && sudo apt-get install -y openssl
+    
+    if command -v openssl &> /dev/null; then
+        echo "openssl 安装成功"
+    else
+        echo "错误：openssl 安装失败"
+        echo "请确保系统是 Ubuntu 或 Debian，并且 apt 可用"
+        exit 1
+    fi
+fi
+
 # 处理命令行参数
 IMAGE_TAG="latest"  # 默认使用 latest
 CHANNEL=""          # 暂存渠道
 SEALDICE_COUNT=""   # 海豹数量参数
+LOGIN_METHOD="napcat"  # 登录方式: napcat 或 llbot，默认为 napcat
 
 # 允许的渠道值
 ALLOWED_CHANNELS=("latest" "stable" "pre")
@@ -17,10 +32,9 @@ if [ $# -eq 0 ]; then
     echo "   ╚════██║██╔══╝  ██╔══██║██║     ██║  ██║██║██║     ██╔══╝  "
     echo "   ███████║███████╗██║  ██║███████╗██████╔╝██║╚██████╗███████╗"
     echo "   ╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚═════╝ ╚═╝ ╚═════╝╚══════╝"
-    echo ""
-    echo "              海豹核心一键部署脚本 "
-    echo "                 2026-03-10 "
-    echo "             ======================"
+    echo "=================================================================="
+    echo "          海豹核心一键部署脚本 by DiceZone 2026-03-29 "
+    echo "=================================================================="
     echo ""
     
     # 询问部署数量
@@ -55,9 +69,26 @@ if [ $# -eq 0 ]; then
         esac
     done
     
+    # 询问登录方式
+    echo ""
+    echo "请选择登录方式："
+    echo "1) NapCat"
+    echo "2) LLBot"
+    
+    while true; do
+        read -p "请输入选择 (1-2，默认1): " login_choice
+        login_choice=${login_choice:-1}
+        
+        case $login_choice in
+            1) LOGIN_METHOD="napcat" ; break ;;
+            2) LOGIN_METHOD="llbot" ; break ;;
+            *) echo "错误：请输入 1-2 之间的数字" ;;
+        esac
+    done
+    
     # 确认执行
     echo ""
-    echo "即将部署 $SEALDICE_COUNT 个海豹，使用 $CHANNEL 版本渠道"
+    echo "即将部署 $SEALDICE_COUNT 个海豹，使用 $CHANNEL 版本渠道，登录方式: $LOGIN_METHOD"
     read -p "确认执行？(y/N): " confirm
     
     if [[ ! $confirm =~ ^[Yy]$ ]]; then
@@ -68,13 +99,16 @@ if [ $# -eq 0 ]; then
     echo ""
 else
     # 原有参数处理逻辑
-    while getopts ":c:n:" opt; do
+    while getopts ":c:n:m:" opt; do
       case $opt in
         c)
           CHANNEL="$OPTARG"
           ;;
         n)
           SEALDICE_COUNT="$OPTARG"
+          ;;
+        m)
+          LOGIN_METHOD="$OPTARG"
           ;;
         \?)
           echo "无效选项: -$OPTARG" >&2
@@ -86,6 +120,14 @@ else
           ;;
       esac
     done
+    
+    # 验证登录方式参数
+    if [ -n "$LOGIN_METHOD" ]; then
+      if [[ "$LOGIN_METHOD" != "napcat" && "$LOGIN_METHOD" != "llbot" ]]; then
+        echo "错误：-m 参数的值必须是 napcat 或 llbot"
+        exit 1
+      fi
+    fi
     
     # 验证渠道参数
     if [ -n "$CHANNEL" ]; then
@@ -157,6 +199,10 @@ done
 echo "已收集所有QQ号: ${QQ_ACCOUNTS[*]}"
 sleep 1
 
+# 初始化密码存储数组
+LLBOT_PASSWORDS=()
+NAPCAT_PASSWORDS=()
+
 # 生成随机MAC地址
 generate_mac() {
     random_bytes=$(openssl rand -hex 4)
@@ -164,6 +210,14 @@ generate_mac() {
     echo "02:42:$formatted_bytes"
 }
 echo "MAC地址生成函数已准备就绪"
+sleep 1
+
+# 生成16位随机密码
+generate_password() {
+    password=$(openssl rand -base64 32 | tr -d '=+/' | cut -c1-16)
+    echo "$password"
+}
+echo "密码生成函数已准备就绪"
 sleep 1
 
 # 安装 MCSM
@@ -294,13 +348,14 @@ sleep 1
 for i in "${!QQ_ACCOUNTS[@]}"; do
     ACCOUNT="${QQ_ACCOUNTS[$i]}"
     SEALDICE_DIR="$SEALDICE_BASE_DIR/$ACCOUNT"
-    QQ_CONFIG_FILE="$SEALDICE_DIR/.env"
     COMPOSE_FILE="$SEALDICE_DIR/docker-compose.yml"
     MCS_CONFIG_FILE="$MCS_CONFIG_DIR/sealdice-$ACCOUNT.json"
     
     # 计算端口分配
     SEALDICE_PORT=$((32110 + i))
-    NAPCAT_PORT=$((22000 + i))
+    
+    # 两种登录方式都使用相同的端口规则
+    WEBUI_PORT=$((22000 + i))
     
     echo "配置第 $((i+1)) 个海豹 (QQ: $ACCOUNT)..."
     sleep 1
@@ -311,14 +366,6 @@ for i in "${!QQ_ACCOUNTS[@]}"; do
     
     # 创建海豹专属目录
     sudo mkdir -p "$SEALDICE_DIR"
-    
-    # 创建环境变量文件
-    sudo tee "$QQ_CONFIG_FILE" > /dev/null <<EOF
-ACCOUNT=$ACCOUNT
-NAPCAT_UID=1000
-NAPCAT_GID=1000
-EOF
-    echo "已创建QQ配置文件: $QQ_CONFIG_FILE"
     
     # 创建MCSManager实例配置
     sudo tee "$MCS_CONFIG_FILE" > /dev/null <<EOF
@@ -388,8 +435,135 @@ EOF
 EOF
     echo "MCSManager 实例配置已创建: $MCS_CONFIG_FILE"
     
-    # 生成docker-compose.yml
-    sudo tee "$COMPOSE_FILE" > /dev/null <<EOF
+    # 生成docker-compose.yml，根据登录方式不同生成不同配置
+    if [ "$LOGIN_METHOD" == "llbot" ]; then
+        # LLBot 模式配置
+        sudo tee "$COMPOSE_FILE" > /dev/null <<EOF
+services:
+  sealdice:
+    image: shiaworkshop/sealdice:$IMAGE_TAG
+    container_name: sealdice-${ACCOUNT}
+    ports:
+      - "${SEALDICE_PORT}:3211"
+    volumes:
+      - "\${PWD}/data:/sealdice/data"
+      - "\${PWD}/backups:/sealdice/backups"
+      - "\${PWD}/llbot/config:/app/llbot/data"
+    networks:
+      - sealdice
+    environment:
+      - MODE=llbot
+
+  pmhq:
+    image: linyuchen/pmhq:latest
+    privileged: true
+    container_name: pmhq-${ACCOUNT}
+    environment:
+      - ENABLE_HEADLESS=false
+      - AUTO_LOGIN_QQ=${ACCOUNT}
+    networks:
+      - sealdice
+    volumes:
+      - "\${PWD}/llbot/QQ_DATA:/root/.config/QQ"
+      - "\${PWD}/data:/sealdice/data"
+      - "\${PWD}/backups:/sealdice/backups"
+
+  llbot:
+    image: linyuchen/llbot:latest
+    ports:
+      - "${WEBUI_PORT}:3080"
+    container_name: llbot-${ACCOUNT}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - PMHQ_HOST=pmhq
+      - WEBUI_PORT=3080
+    networks:
+      - sealdice
+    volumes:
+      - "\${PWD}/llbot/QQ_DATA:/root/.config/QQ"
+      - "\${PWD}/data:/sealdice/data"
+      - "\${PWD}/backups:/sealdice/backups"
+      - "\${PWD}/llbot/config:/app/llbot/data:rw"
+      - "\${PWD}/qrcode:/data/temp"
+    depends_on:
+      - pmhq
+
+networks:
+  sealdice:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.$((100 + i)).0/24
+EOF
+        
+        # 为当前 LLBot 实例生成密码
+        LLBOT_PASSWORD=$(generate_password)
+        LLBOT_PASSWORDS+=("$LLBOT_PASSWORD")
+        
+        # 生成默认配置文件
+        sudo tee "$SEALDICE_DIR/llbot/config/config_${ACCOUNT}.json" > /dev/null <<EOF
+{
+  "milky": {
+    "enable": false,
+    "reportSelfMessage": false,
+    "http": {
+      "host": "",
+      "port": 3000,
+      "prefix": "/milky",
+      "accessToken": ""
+    },
+    "webhook": {
+      "urls": [],
+      "accessToken": ""
+    }
+  },
+  "satori": {
+    "enable": false,
+    "host": "",
+    "port": 5500,
+    "token": ""
+  },
+  "ob11": {
+    "enable": true,
+    "connect": [
+      {
+        "type": "ws",
+        "enable": true,
+        "host": "",
+        "port": 1234,
+        "token": "",
+        "reportSelfMessage": false,
+        "reportOfflineMessage": false,
+        "messageFormat": "array",
+        "debug": false,
+        "heartInterval": 30000
+      }
+    ]
+  },
+  "webui": {
+    "enable": true,
+    "host": "",
+    "port": 3080
+  }
+}
+EOF
+        
+        # 创建 webui_token.txt 文件
+        sudo tee "$SEALDICE_DIR/llbot/config/webui_token.txt" > /dev/null <<EOF
+$LLBOT_PASSWORD
+EOF
+        echo "LLBot WebUI 密码文件已创建"
+        
+        # 创建LLBot目录结构
+        sudo mkdir -p "$SEALDICE_DIR/data" "$SEALDICE_DIR/backups" "$SEALDICE_DIR/llbot/config" "$SEALDICE_DIR/llbot/QQ_DATA"
+        
+        # 设置LLBot目录权限
+        sudo chmod -R 755 "$SEALDICE_DIR"
+        sudo chmod -R 777 "$SEALDICE_DIR/llbot/config"
+    else
+        # NapCat 模式配置
+        sudo tee "$COMPOSE_FILE" > /dev/null <<EOF
 services:
   sealdice:
     image: shiaworkshop/sealdice:$IMAGE_TAG
@@ -410,7 +584,7 @@ services:
     container_name: napcat-${ACCOUNT}
     hostname: ShiaDiceFlats-${ACCOUNT}
     ports:
-      - "${NAPCAT_PORT}:6099"
+      - "${WEBUI_PORT}:6099"
     volumes:
       - "\${PWD}/napcat/config:/app/napcat/config"
       - "\${PWD}/napcat/QQ_DATA:/app/.config/QQ"
@@ -418,8 +592,6 @@ services:
       - "\${PWD}/backups:/sealdice/backups"
       - "\${PWD}/qrcode:/app/napcat/cache"
     environment:
-      - NAPCAT_UID=\${NAPCAT_UID:-1000}
-      - NAPCAT_GID=\${NAPCAT_GID:-1000}
       - MODE=sealdice
       - ACCOUNT=${ACCOUNT}
     networks:
@@ -433,14 +605,41 @@ networks:
       config:
         - subnet: 192.168.$((100 + i)).0/24
 EOF
+        
+        # 为 NapCat 生成密码并创建 webui.json
+        NAPCAT_PASSWORD=$(generate_password)
+        NAPCAT_PASSWORDS+=("$NAPCAT_PASSWORD")
+        
+        sudo tee "$SEALDICE_DIR/napcat/config/webui.json" > /dev/null <<EOF
+{
+    "host": "0.0.0.0",
+    "port": 6099,
+    "token": "$NAPCAT_PASSWORD",
+    "loginRate": 10,
+    "autoLoginAccount": "",
+    "disableWebUI": false,
+    "disableNonLANAccess": false
+}
+EOF
+        
+        # 创建NapCat目录结构
+        sudo mkdir -p "$SEALDICE_DIR/data" "$SEALDICE_DIR/backups" "$SEALDICE_DIR/napcat/config" "$SEALDICE_DIR/napcat/QQ_DATA" "$SEALDICE_DIR/qrcode"
+        
+        # 设置NapCat目录权限
+        sudo chmod -R 755 "$SEALDICE_DIR"
+        sudo chmod -R 777 "$SEALDICE_DIR/napcat/config"
+        
+    fi
     
-    # 使用sed替换MAC地址占位符
-    sudo sed -i "s/\${MAC_ADDRESS}/$MAC_ADDRESS/" "$COMPOSE_FILE"
+    # 设置共享目录权限
+    sudo chmod -R 755 "$SEALDICE_DIR/data" "$SEALDICE_DIR/backups"
     
-    # 创建目录结构
-    sudo mkdir -p "$SEALDICE_DIR/data" "$SEALDICE_DIR/backups" "$SEALDICE_DIR/napcat/config" "$SEALDICE_DIR/napcat/QQ_DATA"
-    
-    echo "第 $((i+1)) 个海豹配置完成，端口: SealDice($SEALDICE_PORT), NapCat($NAPCAT_PORT)"
+    # 根据登录方式输出不同的提示信息
+    if [ "$LOGIN_METHOD" == "llbot" ]; then
+        echo "第 $((i+1)) 个海豹配置完成，端口: SealDice($SEALDICE_PORT), LLBot($WEBUI_PORT)"
+    else
+        echo "第 $((i+1)) 个海豹配置完成，端口: SealDice($SEALDICE_PORT), NapCat($WEBUI_PORT)"
+    fi
     sleep 1
 done
 
@@ -503,23 +702,37 @@ echo "各海豹实例访问地址:"
 for i in "${!QQ_ACCOUNTS[@]}"; do
     ACCOUNT="${QQ_ACCOUNTS[$i]}"
     SEALDICE_PORT=$((32110 + i))
-    NAPCAT_PORT=$((22000 + i))
+    WEBUI_PORT=$((22000 + i))
     echo "  海豹 $((i+1)) (QQ: $ACCOUNT):"
     echo "    SealDice WebUI: http://${EXTERNAL_IP}:$SEALDICE_PORT"
-    echo "    NapCat WebUI: http://${EXTERNAL_IP}:$NAPCAT_PORT"
+    
+    if [ "$LOGIN_METHOD" == "llbot" ]; then
+        echo "    LLBot WebUI: http://${EXTERNAL_IP}:$WEBUI_PORT"
+        echo "    LLBot 密码: ${LLBOT_PASSWORDS[$i]}"
+    else
+        echo "    NapCat WebUI: http://${EXTERNAL_IP}:$WEBUI_PORT"
+        echo "    NapCat 密码: ${NAPCAT_PASSWORDS[$i]}"
+    fi
 done
 echo ""
-echo "立即访问MCSManager面板，账号密码请在访问时自行设置"
+echo "============================================================"
+echo ""
+echo "立即访问 MCSManager 面板，账号密码请在访问时自行设置"
 echo "已创建所有海豹实例并开始拉取镜像，请登录面板页面查看并登录"
-echo "若控制台的二维码被截断，请进入文件管理。扫描 qrcode 文件夹的 qrcode.png"
+echo "若控制台的二维码被截断，请进入文件管理，进入 qrcode 文件夹"
+echo "扫描 qrcode 文件夹的 qrcode.png 或 login-qrcode.png 来登录"
 echo "请在每个骰子成功扫码登录后前往海豹WebUI，为每个骰子设置一个密码"
 echo ""
 echo "需要开放的端口:"
 echo "  MCSManager: 23333, 24444"
 for i in "${!QQ_ACCOUNTS[@]}"; do
     SEALDICE_PORT=$((32110 + i))
-    NAPCAT_PORT=$((22000 + i))
-    echo "  海豹 $((i+1)): $SEALDICE_PORT, $NAPCAT_PORT"
+    WEBUI_PORT=$((22000 + i))
+    if [ "$LOGIN_METHOD" == "llbot" ]; then
+        echo "  海豹 $((i+1)): $SEALDICE_PORT, $WEBUI_PORT (LLBot)"
+    else
+        echo "  海豹 $((i+1)): $SEALDICE_PORT, $WEBUI_PORT (NapCat)"
+    fi
 done
 echo "注意: 云服务器必须在控制台安全组（防火墙）中开放上述端口"
 echo "推荐直接在安全组（防火墙）中添加规则，允许TCP协议的20000-40000端口"
