@@ -24,9 +24,9 @@ log_info "开始配置 ${MODE} 适配器"
 
 # 根据模式设置连接URL
 if [[ "${MODE:-}" == "napcat" ]]; then
-    CONNECT_URL="ws://napcat:1234"
+    CONNECT_URL=ws://napcat:1234
 elif [[ "${MODE:-}" == "llbot" ]]; then
-    CONNECT_URL="ws://llbot:1234"
+    CONNECT_URL=ws://llbot:1234
 fi
 
 # 1. 确定骰子QQ
