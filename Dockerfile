@@ -9,6 +9,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     libicu74 \
+    libstdc++6 \
     ca-certificates \
     wget \
     tar \
