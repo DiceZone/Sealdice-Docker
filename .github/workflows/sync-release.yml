@@ -61,6 +61,9 @@ jobs:
             LINUX_AMD64_URL=$(echo "$RESPONSE" | jq -r '.assets[] | select(.name | contains("linux_amd64.tar.gz")) | .browser_download_url')
             LINUX_ARM64_URL=$(echo "$RESPONSE" | jq -r '.assets[] | select(.name | contains("linux_arm64.tar.gz")) | .browser_download_url')
             
+            # 从下载链接文件名中提取 commit hash（格式：sealdice_YYYYMMDD-COMMITHASH_linux_*.tar.gz）
+            COMMIT_HASH=$(echo "$LINUX_AMD64_URL" | grep -oP '(?<=sealdice_\d{8}-)[a-f0-9]{7}(?=_linux)' || echo "unknown")
+            
             # 检查是否需要更新（对比updated_at时间）
             PREV_UPDATED_AT=""
             if [ -f "pre_release.json" ]; then
