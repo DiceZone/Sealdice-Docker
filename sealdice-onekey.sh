@@ -298,13 +298,20 @@ else
     sleep 1
 fi
 
-# 使用毫秒镜像服务加速
-echo "配置毫秒镜像服务加速..."
+# 使用镜像服务加速
+echo "配置镜像服务加速..."
 sudo mkdir -p /etc/docker
 sudo tee /etc/docker/daemon.json >/dev/null <<EOF
 {
   "registry-mirrors": [
-    "https://docker.1ms.run"
+    "https://mirror.ccs.tencentyun.com",
+    "https://docker.sparkcr.cn",
+    "https://hub.rat.dev",
+    "https://dockerproxy.net",
+    "https://docker-registry.nmqu.com",
+    "https://docker.m.daocloud.io",
+    "https://docker.1ms.run",
+    "https://docker.kejilion.pro"
   ]
 }
 EOF
