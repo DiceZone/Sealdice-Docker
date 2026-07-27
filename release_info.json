@@ -1,12 +1,13 @@
 {
-  "pre": null,
-  "stable": {
-    "type": "stable",
-    "tag_name": "v1.6.0",
-    "published_at": "2026-07-26T16:07:20Z",
-    "downloads": {
-      "linux_amd64": "https://github.com/sealdice/sealdice-build/releases/download/v1.6.0/sealdice-core_1.6.0_linux_amd64.tar.gz",
-      "linux_arm64": "https://github.com/sealdice/sealdice-build/releases/download/v1.6.0/sealdice-core_1.6.0_linux_arm64.tar.gz"
-    }
-  }
+  "pre": {
+      "type": "pre-release",
+      "updated_at": "2026-07-27T06:29:27Z",
+      "tag_name": "pre-release",
+      "commit_hash": "44330da",
+      "downloads": {
+        "linux_amd64": "https://github.com/sealdice/sealdice-build/releases/download/pre-release/sealdice_20260727-44330da_linux_amd64.tar.gz",
+        "linux_arm64": "https://github.com/sealdice/sealdice-build/releases/download/pre-release/sealdice_20260727-44330da_linux_arm64.tar.gz"
+      }
+    },
+  "stable": null
 }
