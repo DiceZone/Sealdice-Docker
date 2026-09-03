@@ -69,6 +69,12 @@ RUN wget "https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_${T
 # 生成入口脚本
 COPY configure-onebot.sh /configure-onebot.sh
 RUN chmod +x /configure-onebot.sh
+# 最后一行必须 exec。
+#
+# 不 exec 的话容器里的 PID 1 是这个 sh，sealdice-core 只是它的子进程。停止容器
+# 时 Docker 把 SIGTERM 发给 PID 1，而 sh 在等前台子进程期间既不转发信号、也要等
+# 子进程退出才处理它——于是宽限期白等，到点整个 cgroup 被 SIGKILL，骰子没有机会
+# 落盘。实测：不加 exec 停止耗时 10 秒、退出码 137；加了 exec 是 0 秒、退出码 0。
 RUN echo "#!/bin/sh" > /entrypoint.sh && \
     echo "set -e" >> /entrypoint.sh && \
     echo "cp -r /release-backup/* /sealdice/" >> /entrypoint.sh && \
@@ -77,7 +83,7 @@ RUN echo "#!/bin/sh" > /entrypoint.sh && \
     echo "    cp /configure-onebot.sh ./configure-onebot.sh" >> /entrypoint.sh && \
     echo "    ./configure-onebot.sh || { echo \"configure-onebot.sh failed\"; exit 1; }" >> /entrypoint.sh && \
     echo "fi" >> /entrypoint.sh && \
-    echo "./sealdice-core" >> /entrypoint.sh && \
+    echo "exec ./sealdice-core" >> /entrypoint.sh && \
     chmod +x /entrypoint.sh
 
 # 暴露端口并启动
