@@ -24,7 +24,7 @@ RUN mkdir -p /sealdice /release-backup /sealdice/data /sealdice/backup
 WORKDIR /sealdice
 
 # 声明卷
-VOLUME ["/sealdice"]
+VOLUME ["/sealdice/data", "/sealdice/backup"]
 
 # 添加配置文件
 ARG CONFIG_FILE
