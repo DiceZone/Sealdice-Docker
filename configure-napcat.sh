@@ -99,29 +99,15 @@ imSession:
             platform: QQ
             relWorkDir: x
             enable: true
-            protocolType: onebot
+            protocolType: pureonebot
             isPublic: false
           adapter:
-            isReverse: false
-            reverseAddr: ""
+            token: ""
             connectUrl: ws://napcat:1234
-            accessToken: ""
-            useInPackGoCqhttp: false
-            builtinMode: gocq
-            inPackGoCqLastAutoLoginTime: 0
-            inPackGoCqHttpLoginSucceeded: false
-            inPackGoCqHttpLastRestricted: 0
-            forcePrintLog: false
-            inPackGoCqHttpProtocol: 0
-            inPackGoCqHttpAppVersion: ""
-            inPackGoCqHttpPassword: ""
-            ignoreFriendRequest: false
-            implementation: gocq
-            useSignServer: false
-            signServerConfig: null
-            extraArgs: ""
-            signServerVer: ""
-            signServerName: ""
+            mode: client
+            reverseUrl: ""
+            reverseSuffix: /ws
+            ignore_friend_request: false
 EOF
     log_info "已创建新的 serve.yaml 文件"
 else
@@ -130,9 +116,27 @@ else
     # 检查是否已经配置了 napcat 连接（ws://napcat:1234）
     existing_napcat_config=$(yq '.imSession.endPoints[] | select(.adapter.connectUrl == "ws://napcat:1234") | .baseInfo.userId' "$SERVE_FILE" 2>/dev/null || echo "")
     if [[ -n "$existing_napcat_config" ]]; then
-        log_info "检测到已存在 napcat 配置: $existing_napcat_config，跳过 serve.yaml 修改"
-        # 跳过整个 serve.yaml 处理逻辑，直接处理 dice.yaml
-        SKIP_SERVE_MODIFICATION=true
+        legacy_onebot_config=$(yq '.imSession.endPoints[] | select(.adapter.connectUrl == "ws://napcat:1234" and (.baseInfo.protocolType != "pureonebot" or .adapter.mode != "client")) | .baseInfo.userId' "$SERVE_FILE" 2>/dev/null || echo "")
+        if [[ -n "$legacy_onebot_config" ]]; then
+            log_info "检测到旧版 napcat 配置: $legacy_onebot_config，迁移为新版 OneBot 11 连接器"
+            cp "$SERVE_FILE" "$SERVE_FILE.backup"
+            yq -i '
+                (.imSession.endPoints[] | select(.adapter.connectUrl == "ws://napcat:1234")) |= (
+                    .baseInfo.protocolType = "pureonebot" |
+                    .adapter = {
+                        "token": (.adapter.token // .adapter.accessToken // ""),
+                        "connectUrl": "ws://napcat:1234",
+                        "mode": "client",
+                        "reverseUrl": "",
+                        "reverseSuffix": "/ws",
+                        "ignore_friend_request": (.adapter.ignore_friend_request // .adapter.ignoreFriendRequest // false)
+                    }
+                )
+            ' "$SERVE_FILE"
+            log_info "已迁移 napcat 配置"
+        else
+            log_info "检测到已存在新版 napcat 配置: $existing_napcat_config，跳过 serve.yaml 修改"
+        fi
     else
         log_info "未找到现有 napcat 配置，继续处理"
         # 备份原文件
@@ -181,28 +185,16 @@ EOF
                 .imSession.endPoints[$endpoint_index].baseInfo.platform = \"QQ\" |
                 .imSession.endPoints[$endpoint_index].baseInfo.relWorkDir = \"x\" |
                 .imSession.endPoints[$endpoint_index].baseInfo.enable = true |
-                .imSession.endPoints[$endpoint_index].baseInfo.protocolType = \"onebot\" |
+                .imSession.endPoints[$endpoint_index].baseInfo.protocolType = \"pureonebot\" |
                 .imSession.endPoints[$endpoint_index].baseInfo.isPublic = $original_is_public |
-                .imSession.endPoints[$endpoint_index].adapter.isReverse = false |
-                .imSession.endPoints[$endpoint_index].adapter.reverseAddr = \"\" |
-                .imSession.endPoints[$endpoint_index].adapter.connectUrl = \"ws://napcat:1234\" |
-                .imSession.endPoints[$endpoint_index].adapter.accessToken = \"\" |
-                .imSession.endPoints[$endpoint_index].adapter.useInPackGoCqhttp = false |
-                .imSession.endPoints[$endpoint_index].adapter.builtinMode = \"gocq\" |
-                .imSession.endPoints[$endpoint_index].adapter.inPackGoCqLastAutoLoginTime = 0 |
-                .imSession.endPoints[$endpoint_index].adapter.inPackGoCqHttpLoginSucceeded = false |
-                .imSession.endPoints[$endpoint_index].adapter.inPackGoCqHttpLastRestricted = 0 |
-                .imSession.endPoints[$endpoint_index].adapter.forcePrintLog = false |
-                .imSession.endPoints[$endpoint_index].adapter.inPackGoCqHttpProtocol = 0 |
-                .imSession.endPoints[$endpoint_index].adapter.inPackGoCqHttpAppVersion = \"\" |
-                .imSession.endPoints[$endpoint_index].adapter.inPackGoCqHttpPassword = \"\" |
-                .imSession.endPoints[$endpoint_index].adapter.ignoreFriendRequest = false |
-                .imSession.endPoints[$endpoint_index].adapter.implementation = \"gocq\" |
-                .imSession.endPoints[$endpoint_index].adapter.useSignServer = false |
-                .imSession.endPoints[$endpoint_index].adapter.signServerConfig = null |
-                .imSession.endPoints[$endpoint_index].adapter.extraArgs = \"\" |
-                .imSession.endPoints[$endpoint_index].adapter.signServerVer = \"\" |
-                .imSession.endPoints[$endpoint_index].adapter.signServerName = \"\"
+                .imSession.endPoints[$endpoint_index].adapter = {
+                    \"token\": (.imSession.endPoints[$endpoint_index].adapter.token // .imSession.endPoints[$endpoint_index].adapter.accessToken // \"\"),
+                    \"connectUrl\": \"ws://napcat:1234\",
+                    \"mode\": \"client\",
+                    \"reverseUrl\": \"\",
+                    \"reverseSuffix\": \"/ws\",
+                    \"ignore_friend_request\": (.imSession.endPoints[$endpoint_index].adapter.ignore_friend_request // .imSession.endPoints[$endpoint_index].adapter.ignoreFriendRequest // false)
+                }
             " "$SERVE_FILE"
             
             log_info "已更新现有配置，保留 isPublic 状态: $original_is_public"
@@ -223,29 +215,15 @@ baseInfo:
   platform: QQ
   relWorkDir: x
   enable: true
-  protocolType: onebot
+  protocolType: pureonebot
   isPublic: false
 adapter:
-  isReverse: false
-  reverseAddr: ""
+  token: ""
   connectUrl: ws://napcat:1234
-  accessToken: ""
-  useInPackGoCqhttp: false
-  builtinMode: gocq
-  inPackGoCqLastAutoLoginTime: 0
-  inPackGoCqHttpLoginSucceeded: false
-  inPackGoCqHttpLastRestricted: 0
-  forcePrintLog: false
-  inPackGoCqHttpProtocol: 0
-  inPackGoCqHttpAppVersion: ""
-  inPackGoCqHttpPassword: ""
-  ignoreFriendRequest: false
-  implementation: gocq
-  useSignServer: false
-  signServerConfig: null
-  extraArgs: ""
-  signServerVer: ""
-  signServerName: ""
+  mode: client
+  reverseUrl: ""
+  reverseSuffix: /ws
+  ignore_friend_request: false
 EOF
         # 使用 yq 将新端点添加到数组末尾
         yq -i '.imSession.endPoints += [load("'"$NEW_ENDPOINT_FILE"'")]' "$SERVE_FILE"
