@@ -35,7 +35,9 @@ if [[ -z "$DICE_QQ" ]]; then
     log_info "环境变量 DICE_QQ 未设置，尝试从 /app/napcat/config 目录查找"
     if [[ -d "/app/napcat/config" ]]; then
         # 查找 onebot11_数字.json 文件，按修改时间排序，取最新的
-        latest_file=$(find /app/napcat/config -name "onebot11_*.json" -type f 2>/dev/null | xargs ls -t 2>/dev/null | head -n1)
+        # 不用 head 截管道：pipefail 下前面的命令可能因 SIGPIPE 被判失败，set -e 会让整个入口退出
+        latest_file=$(find /app/napcat/config -name "onebot11_*.json" -type f -print0 2>/dev/null | xargs -0 -r ls -t 2>/dev/null || true)
+        latest_file=${latest_file%%$'\n'*}
         if [[ -n "$latest_file" ]]; then
             # 提取数字部分
             if [[ "$latest_file" =~ onebot11_([0-9]+)\.json ]]; then
@@ -57,7 +59,9 @@ if [[ -z "$DICE_QQ" ]]; then
     log_info "尝试从现有 serve.yaml 读取骰子QQ"
     if [[ -f "data/default/serve.yaml" ]]; then
         # 查找所有QQ平台的适配器
-        existing_qqs=$(yq '.imSession.endPoints[] | select(.baseInfo.platform == "QQ") | .baseInfo.userId | capture("QQ:(?<qq>\\d+)").qq' "data/default/serve.yaml" 2>/dev/null | head -1)
+        # 可能有多个 QQ 平台端点（如官方机器人 OpenQQ:），只认 QQ:数字，取第一个；同样不用 head
+        existing_qqs=$(yq '.imSession.endPoints[] | select(.baseInfo.platform == "QQ") | .baseInfo.userId | select(test("^QQ:\\d+$")) | capture("QQ:(?<qq>\\d+)").qq' "data/default/serve.yaml" 2>/dev/null || true)
+        existing_qqs=${existing_qqs%%$'\n'*}
         if [[ -n "$existing_qqs" ]]; then
             DICE_QQ="$existing_qqs"
             log_info "从现有配置文件中提取到骰子QQ: $DICE_QQ"
